@@ -15,6 +15,9 @@ CORS(app)
 
 DB_PATH = os.environ.get("DB_PATH", "/data/annotations.db")
 API_KEYS = os.environ.get("API_KEYS", "").split(",")  # comma-separated: "denimcity:key1,clientx:key2"
+# Allowed origins: browser requests from these domains don't need an API key
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",")
+# e.g. "https://denimcityhomepage.superstories.com,https://denimcity.superstories.com"
 
 
 def get_db():
@@ -53,13 +56,23 @@ def init_db():
 
 
 def check_auth():
-    """Check API key. Returns project name or None."""
+    """Check auth via API key OR allowed origin.
+    Browser requests use Origin header (no key needed in HTML).
+    CLI/script requests use X-Annotation-Key header.
+    """
+    # Check API key first (for CLI/Claude Code access)
     key = request.headers.get("X-Annotation-Key", "")
     for entry in API_KEYS:
         if ":" in entry:
             project, project_key = entry.strip().split(":", 1)
             if project_key == key:
                 return project
+
+    # Check Origin header (for browser requests from allowed sites)
+    origin = request.headers.get("Origin", "")
+    if origin and origin.strip() in [o.strip() for o in ALLOWED_ORIGINS if o.strip()]:
+        return "browser"
+
     return None
 
 
