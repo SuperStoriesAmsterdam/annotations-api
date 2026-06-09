@@ -68,10 +68,17 @@ def check_auth():
             if project_key == key:
                 return project
 
-    # Check Origin header (for browser requests from allowed sites)
-    origin = request.headers.get("Origin", "")
-    if origin and origin.strip() in [o.strip() for o in ALLOWED_ORIGINS if o.strip()]:
-        return "browser"
+    # Check Origin header (for browser requests from allowed sites).
+    # Explicit allowlist (ALLOWED_ORIGINS env) PLUS any SuperStories
+    # staging/ecosystem subdomain over https, so new staging sites work
+    # without editing the env each time (internal review tool).
+    origin = request.headers.get("Origin", "").strip()
+    if origin:
+        explicit = [o.strip() for o in ALLOWED_ORIGINS if o.strip()]
+        if (origin in explicit
+                or (origin.startswith("https://") and origin.endswith(".superstories.com"))
+                or origin == "https://superstories.com"):
+            return "browser"
 
     return None
 
